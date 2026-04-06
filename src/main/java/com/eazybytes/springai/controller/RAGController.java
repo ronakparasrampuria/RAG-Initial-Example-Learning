@@ -28,7 +28,6 @@ public class RAGController {
     private static final Logger log = LoggerFactory.getLogger(RAGController.class);
 
     private final ChatClient chatClient;
-    private final ChatClient webSearchchatClient;
     private final VectorStore vectorStore;
     private final EmbeddingModel embeddingModel;
 
@@ -39,10 +38,8 @@ public class RAGController {
     Resource hrSystemTemplate;
 
     public RAGController(@Qualifier("chatMemoryChatClient") ChatClient chatClient,
-                         @Nullable @Qualifier("webSearchRAGChatClient") ChatClient webSearchchatClient,
                          VectorStore vectorStore, EmbeddingModel embeddingModel) {
         this.chatClient = chatClient;
-        this.webSearchchatClient = webSearchchatClient;
         this.vectorStore = vectorStore;
         this.embeddingModel = embeddingModel;
     }
@@ -107,6 +104,25 @@ public class RAGController {
         String answer = chatClient.prompt()
                 .system(promptSystemSpec -> promptSystemSpec.text(hrSystemTemplate)
                                 .param("documents", similarContext))
+                .advisors(a -> a.param(CONVERSATION_ID, username))
+                .user(message)
+                .call().content();
+        return ResponseEntity.ok(answer);
+    }
+
+    // When using Retrieval Augmentation Advisors, the chat client will automatically perform the retrieval step based on the query and the provided configuration. In that case, you can have a simpler endpoint like this:
+    @GetMapping("/document/augmented-advisor/chat")
+    public ResponseEntity<String> documentChatUsingRetrievalAugmentedAdvisor(@RequestHeader("username") String username,
+                                               @RequestParam("message") String message) {
+        /*SearchRequest searchRequest =
+                SearchRequest.builder().query(message).topK(3).similarityThreshold(0.5).build();
+        List<Document> similarDocs =  vectorStore.similaritySearch(searchRequest);
+        String similarContext = similarDocs.stream()
+                .map(Document::getText)
+                .collect(Collectors.joining(System.lineSeparator()));*/
+        String answer = chatClient.prompt()
+                /*.system(promptSystemSpec -> promptSystemSpec.text(hrSystemTemplate)
+                        .param("documents", similarContext))*/
                 .advisors(a -> a.param(CONVERSATION_ID, username))
                 .user(message)
                 .call().content();
